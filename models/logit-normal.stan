@@ -34,20 +34,15 @@ data {
   vector[N] y;
   int K;
   matrix[N,K] X;
-  vector[1] threshold;
+  real threshold;
 }
 
 transformed data{
   real max_y = max(y);
   real min_y = min(y);
   vector[N] y_ = min_max_logit(y);          // min-max normalization -> logit transformation
-  real max_finite = max_abs_finite(y_);  // what is the maximum absolute finite transformed value?
-  real x_r[0];                              // only needed for the algebra slover
-  int x_i[0];                               // only needed for the algebra slover
-  // The following line seeks the user-specified threshold 
-  // for maximum values and calculates the respective logit
-  vector[1] max_threshold = algebra_solver(solve_inv_logit, [5]', threshold, x_r, x_i);
-  real maximum = fmax(max_threshold[1], max_finite); // use whatever is value is higher
+  real max_finite = max_abs_finite(y_);     // what is the maximum absolute finite transformed value?
+  real maximum = fmax(logit(threshold), max_finite); // use whatever is value is higher
 }
 
 parameters {
@@ -71,14 +66,14 @@ transformed parameters {
 
 model {
   // likelihood
-  y_ast ~ normal(X*beta, sigma);
+  target += normal_lpdf(y_ast | X*beta, sigma);
   
   // Jacobian correction
   target += log(max_y - min_y) + log_inv_logit(y_ast) + log1m_inv_logit(y_ast);
   
   // priors
-  beta ~ normal(0, 1.5);
-  sigma ~ exponential(1);
+  target += normal_lpdf(beta | 0, 1.5);
+  target += exponential_lpdf(sigma | 1);
 }
 
 generated quantities{
@@ -86,6 +81,7 @@ generated quantities{
   vector[N] log_lik; // pointwise posterior log-likelihood
   for(n in 1:N){
     y_rep[n] = inv_logit(normal_rng(X[n,]*beta, sigma))*(max_y - min_y) + min_y;
-    log_lik[n] = 0; // need to derive this ... probably impossible, because infinite values... ?!
+    log_lik[n] = normal_lpdf(y_ast[n] | X*beta, sigma) + log(max_y - min_y) 
+                 + log_inv_logit(y_ast[n]) + log1m_inv_logit(y_ast[n]);
   }
 }
