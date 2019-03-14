@@ -6,7 +6,7 @@
 functions{
   vector min_max_logit(vector x){
     // function description
-    vector[rows(x)] x_ast = inv_logit((x - min(x))/(max(x) - min(x)));
+    vector[rows(x)] x_ast = logit((x - min(x))/(max(x) - min(x)));
     return(x_ast);
   }
   
@@ -22,11 +22,6 @@ functions{
     return(result);
   }
   
-  vector solve_inv_logit(vector x, vector treshold, real[] x_r, int[] x_i) {
-    vector[1] deltas;
-    deltas = inv_logit(x) - treshold;
-    return deltas;
-  }
 }
 
 data {
@@ -42,7 +37,7 @@ transformed data{
   real min_y = min(y);
   vector[N] y_ = min_max_logit(y);          // min-max normalization -> logit transformation
   real max_finite = max_abs_finite(y_);     // what is the maximum absolute finite transformed value?
-  real maximum = fmax(logit(threshold), max_finite); // use whatever is value is higher
+  real maximum = fmax(threshold, max_finite); // use whatever is value is higher
 }
 
 parameters {
@@ -81,7 +76,7 @@ generated quantities{
   vector[N] log_lik; // pointwise posterior log-likelihood
   for(n in 1:N){
     y_rep[n] = inv_logit(normal_rng(X[n,]*beta, sigma))*(max_y - min_y) + min_y;
-    log_lik[n] = normal_lpdf(y_ast[n] | X*beta, sigma) + log(max_y - min_y) 
+    log_lik[n] = normal_lpdf(y_ast[n] | X[n,]*beta, sigma) + log(max_y - min_y) + 
                  + log_inv_logit(y_ast[n]) + log1m_inv_logit(y_ast[n]);
   }
 }
