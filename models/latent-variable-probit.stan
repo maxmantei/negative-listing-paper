@@ -55,11 +55,11 @@ transformed parameters {
 
 model {
   // likelihood of the latent variable (sigma fixed to 1 -> Probit)
-  z ~ normal(X*gamma + Z*delta, 1);
+  target += normal_lpdf(z | X*gamma + Z*delta, 1);
 
   // priors on regression coefficients
-  gamma ~ normal(0, 1.5);
-  delta ~ normal(0, 1.5);
+  target += normal_lpdf(gamma | 0, 1.5);
+  target += normal_lpdf(delta | 0, 1.5);
 }
 
 generated quantities {
