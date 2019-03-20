@@ -38,11 +38,17 @@ transformed data{
   vector[N] y_ = min_max_logit(y);          // min-max normalization -> logit transformation
   real max_finite = max_abs_finite(y_);     // what is the maximum absolute finite transformed value?
   real maximum = fmax(threshold, max_finite); // use whatever is value is higher
+  matrix[N,K+1] Q = qr_thin_Q(append_col(rep_vector(1.0,N),  X));
+  matrix[K+1,K+1] R = qr_thin_R(append_col(rep_vector(1.0,N),  X));
+  matrix[N,K] Q_ast = (Q*R[1,1])[,2:(K+1)];
+  matrix[K,K] R_ast = (R/R[1,1])[2:(K+1),2:(K+1)];
+  matrix[K,K] R_ast_inv = inverse(R_ast);
 }
 
 parameters {
-  real<lower=maximum> theta; 
-  vector[K] beta;
+  real<lower=maximum> theta;
+  real alpha;
+  vector[K] beta_tilde;
   real<lower=0> sigma;
 }
 
@@ -61,17 +67,19 @@ transformed parameters {
 
 model {
   // likelihood
-  target += normal_lpdf(y_ast | X*beta, sigma);
+  target += normal_lpdf(y_ast | alpha +  Q_ast*beta_tilde, sigma);
   
   // Jacobian correction
   target += log(max_y - min_y) + log_inv_logit(y_ast) + log1m_inv_logit(y_ast);
   
   // priors
-  target += normal_lpdf(beta | 0, 1.5);
+  target += normal_lpdf(alpha | 0, 2.5);
+  target += normal_lpdf(beta_tilde | 0, 2.5);
   target += exponential_lpdf(sigma | 1);
 }
 
 generated quantities{
+  vector[K] beta = R_ast_inv*beta_tilde;
   vector[N] y_rep;   // posterior replications of y
   vector[N] log_lik; // pointwise posterior log-likelihood
   for(n in 1:N){

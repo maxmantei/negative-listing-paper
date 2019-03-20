@@ -18,6 +18,16 @@ transformed data{
   int<lower=1,upper=N> n_pos[sum(y)];
   int<lower=0> N_neg;
   int<lower=1,upper=N> n_neg[N - size(n_pos)];
+  
+  matrix[N,K+M+1] Q = qr_thin_Q(append_col(append_col(rep_vector(1.0,N), X), Z ));
+  matrix[M+K+1,M+K+1] R = qr_thin_R(append_col(append_col(rep_vector(1.0,N), X), Z ));
+  matrix[N,K] QX_ast = (Q*R[1,1])[,2:(K+1)];
+  matrix[K,K] RX_ast = (R/R[1,1])[2:(K+1),2:(K+1)];
+  matrix[K,K] RX_ast_inv = inverse(RX_ast);
+  matrix[N,M] QZ_ast = (Q*R[1,1])[,(K+2):(M+K+1)];
+  matrix[M,M] RZ_ast = (R/R[1,1])[(K+2):(M+K+1),(K+2):(M+K+1)];
+  matrix[M,M] RZ_ast_inv = inverse(RZ_ast);
+  
   N_pos = size(n_pos);
   N_neg = size(n_neg);
   {
@@ -38,8 +48,9 @@ transformed data{
 }
 
 parameters {
-  vector[K] gamma;              // coefficients for X
-  vector[M] delta;              // coefficients for Z
+  real alpha;                   // intercept
+  vector[K] gamma_tilde;        // coefficients for X
+  vector[M] delta_tilde;        // coefficients for Z
   vector<lower=0>[N_pos] z_pos; // latent variable for y == 1
   vector<upper=0>[N_neg] z_neg; // latent variable for y == 0
 }
@@ -55,15 +66,18 @@ transformed parameters {
 
 model {
   // likelihood of the latent variable (sigma fixed to 1 -> Probit)
-  target += normal_lpdf(z | X*gamma + Z*delta, 1);
+  target += normal_lpdf(z | alpha + QX_ast*gamma_tilde + QZ_ast*delta_tilde, 1);
 
   // priors on regression coefficients
-  target += normal_lpdf(gamma | 0, 1.5);
-  target += normal_lpdf(delta | 0, 1.5);
+  target += normal_lpdf(alpha | 0, 2.5);
+  target += normal_lpdf(gamma_tilde | 0, 2.5);
+  target += normal_lpdf(delta_tilde | 0, 2.5);
 }
 
 generated quantities {
-  vector[N] eta = Phi(X*gamma + Z*delta); // linear predictor
+  vector[K] gamma = RX_ast_inv*gamma_tilde;
+  vector[M] delta = RZ_ast_inv*delta_tilde;
+  vector[N] eta = Phi(alpha + X*gamma + Z*delta); // linear predictor
   int y_rep[N];                           // posterior replication
   vector[N] log_lik;                      // pointwise log-likelihood
   
