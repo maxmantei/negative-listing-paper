@@ -83,8 +83,8 @@ generated quantities{
   vector[N] y_rep;   // posterior replications of y
   vector[N] log_lik; // pointwise posterior log-likelihood
   for(n in 1:N){
-    y_rep[n] = inv_logit(normal_rng(X[n,]*beta, sigma))*(max_y - min_y) + min_y;
-    log_lik[n] = normal_lpdf(y_ast[n] | X[n,]*beta, sigma) + log(max_y - min_y) + 
+    y_rep[n] = inv_logit(normal_rng(alpha + X[n,]*beta, sigma))*(max_y - min_y) + min_y;
+    log_lik[n] = normal_lpdf(y_ast[n] | alpha + X[n,]*beta, sigma) + log(max_y - min_y) + 
                  + log_inv_logit(y_ast[n]) + log1m_inv_logit(y_ast[n]);
   }
 }
