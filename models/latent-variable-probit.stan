@@ -72,12 +72,12 @@ model {
 generated quantities {
   vector[K] gamma = (R_ast_inv*params_tilde)[1:K];
   vector[M] delta = (R_ast_inv*params_tilde)[(K+1):(K+M)];
-  vector[N] eta = Phi(alpha + X*gamma + Z*delta); // linear predictor
+  vector[N] eta = alpha + X*gamma + Z*delta; // linear predictor
   int y_rep[N];                           // posterior replication
   vector[N] log_lik;                      // pointwise log-likelihood
   
   for (n in 1:N){
-    y_rep[n] = bernoulli_rng(eta[n]);
-    log_lik[n] = bernoulli_lpmf(y[n] | eta[n]);
+    y_rep[n] = bernoulli_rng(Phi(z[n]));
+    log_lik[n] = bernoulli_lpmf(y[n] | Phi(z[n]));
   }
 }
