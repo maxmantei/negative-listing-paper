@@ -92,7 +92,7 @@ parameters {
 }
 
 transformed parameters {
-  matrix[2,2] L_Sigma = diag_pre_multiply([1, sigma]', L_Omega);
+  cholesky_factor_cov[2] L_Sigma = diag_pre_multiply([1, sigma], L_Omega);
   vector[2] Y[N];
   vector[2] eta[N];
   
